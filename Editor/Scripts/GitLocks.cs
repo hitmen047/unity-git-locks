@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Newtonsoft.Json.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -95,6 +96,20 @@ public class GitLocks : ScriptableObject
             EditorPrefs.SetBool("gitLocksShowForceButtons", false);
         }
 
+        if (!EditorPrefs.HasKey("gitConfigureManual"))
+        {
+            EditorPrefs.SetBool("gitConfigureManual", false);
+        }
+        if (!EditorPrefs.HasKey("gitAutomaticEnv"))
+        {
+            EditorPrefs.SetBool("gitAutomaticEnv", true);
+        }
+
+        if (!EditorPrefs.HasKey("gitNixShell"))
+        {
+            EditorPrefs.SetString("gitNixShell", "/bin/bash");
+        }
+
         conflictWarningIgnoreList = new List<string>();
 
         GetGitVersion();
@@ -122,7 +137,7 @@ public class GitLocks : ScriptableObject
 
         // Get the locks asynchronously
         currentlyRefreshing = true;
-        ExecuteNonBlockingProcessTerminal("git", "lfs locks --json");
+        ExecuteNonBlockingProcessTerminal(GitExecutable(), "lfs locks --json");
     }
 
     public static void RefreshCallback(string result)
@@ -130,7 +145,7 @@ public class GitLocks : ScriptableObject
         // If empty result, start a simple git lfs locks (no json) to catch potential errors
         if (result == "[]")
         {
-            ExecuteNonBlockingProcessTerminal("git", "lfs locks");
+            ExecuteNonBlockingProcessTerminal(GitExecutable(), "lfs locks");
         }
 
         // Check that we're receiving what seems to be a JSON result
@@ -240,12 +255,27 @@ public class GitLocks : ScriptableObject
     {
         DebugLog("ExecuteProcessTerminal: " + processName + " with the following parameters:\n" + processArguments);
 
+        bool isNix = Environment.OSVersion.Platform == PlatformID.Unix ||
+                     Environment.OSVersion.Platform == PlatformID.MacOSX;
+        
         if (openTerminal)
         {
             Process p = new Process();
             ProcessStartInfo psi = new ProcessStartInfo();
-            psi.FileName = "cmd.exe";
-            psi.Arguments = "/k " + processName + " " + processArguments;
+            var shell = GitShell();
+            psi.FileName = shell;
+            if (isNix)
+            {
+                // Use the default shell for Mac/Linux, e.g., bash or zsh
+                psi.Arguments = $"-c \"{processName} {processArguments}\"";
+            }
+            else
+            {
+                psi.Arguments = "/k " + processName + " " + processArguments;   
+            }
+
+            UpdateEnvironmentVariables(psi);
+            
             p.StartInfo = psi;
             p.Start();
 
@@ -265,6 +295,8 @@ public class GitLocks : ScriptableObject
                     p.StartInfo.RedirectStandardError = !openTerminal;
                     p.StartInfo.FileName = processName;
                     p.StartInfo.Arguments = processArguments;
+
+                    UpdateEnvironmentVariables(p.StartInfo);
 
                     System.Text.StringBuilder output = new System.Text.StringBuilder();
                     System.Text.StringBuilder error = new System.Text.StringBuilder();
@@ -329,6 +361,57 @@ public class GitLocks : ScriptableObject
             }
         }
     }
+    
+    /// <summary>
+    /// Inject Environment variables either automatically or whatever the user specifies
+    /// </summary>
+    /// <param name="psi"></param>
+    public static void UpdateEnvironmentVariables(ProcessStartInfo psi)
+    {
+        if (EditorPrefs.GetBool("gitAutomaticEnv"))
+        {
+            psi.EnvironmentVariables.Clear();
+            foreach (System.Collections.DictionaryEntry de in Environment.GetEnvironmentVariables())
+            {
+                psi.EnvironmentVariables.Add((string)de.Key, (string)de.Value);
+            }
+        }
+        else
+        {
+            string environment = EditorPrefs.GetString("gitEnvironment");
+            var lines = Regex.Split(environment, "\r\n|\r|\n");
+
+            foreach (var line in lines)
+            {
+                // Trim the line and ensure it's not empty or whitespace
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    var keyval = line.Split('=', 2); // Split into key and value by the first '='
+
+                    // Check for a valid key-value pair
+                    if (keyval.Length == 2)
+                    {
+                        string key = keyval[0].Trim();
+                        string value = keyval[1].Trim();
+
+                        // Ensure both key and value are not empty after trimming
+                        if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(value))
+                        {
+                            // Check for duplicate keys and overwrite if exists
+                            if (psi.EnvironmentVariables.ContainsKey(key))
+                            {
+                                psi.EnvironmentVariables[key] = value;
+                            }
+                            else
+                            {
+                                psi.EnvironmentVariables.Add(key, value);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     public static string ExecuteProcessTerminal(string processName, string processArguments, bool openTerminal = false)
     {
@@ -367,6 +450,8 @@ public class GitLocks : ScriptableObject
             p.StartInfo.FileName = processName;
             p.StartInfo.Arguments = processArguments;
             p.EnableRaisingEvents = true;
+            UpdateEnvironmentVariables(p.StartInfo);
+            
             p.OutputDataReceived += new System.Diagnostics.DataReceivedEventHandler((sender, e) =>
             {
                 // Store the results to be treated on the main thread
@@ -543,7 +628,7 @@ public class GitLocks : ScriptableObject
         // Send each request
         foreach (string pathsString in pathsStrings)
         {
-            ExecuteProcessTerminalWithConsole("git", "lfs lock " + pathsString);
+            ExecuteProcessTerminalWithConsole(GitExecutable(), "lfs lock " + pathsString);
         }
     }
 
@@ -579,7 +664,7 @@ public class GitLocks : ScriptableObject
         // Send each request
         foreach (string pathsString in pathsStrings)
         {
-            ExecuteProcessTerminalWithConsole("git", "lfs unlock " + pathsString + (force ? "--force" : string.Empty));
+            ExecuteProcessTerminalWithConsole(GitExecutable(), "lfs unlock " + pathsString + (force ? "--force" : string.Empty));
         }
     }
 
@@ -659,12 +744,35 @@ public class GitLocks : ScriptableObject
 
     public static string GetGitVersion()
     {
-        if (gitVersion == null || gitVersion == string.Empty)
+        if (String.IsNullOrEmpty(gitVersion))
         {
-            gitVersion = ExecuteProcessTerminalWithConsole("git", "--version");
+            gitVersion = ExecuteProcessTerminalWithConsole(GitExecutable(), "--version");
         }
 
         return gitVersion;
+    }
+
+    public static string GitExecutable()
+    {
+        if (EditorPrefs.GetBool("gitConfigureManual"))
+        {
+            Console.Out.WriteLine("Git configured manually, using path specified");
+            return EditorPrefs.GetString("gitBinary");
+        }
+
+        return "git";
+    }
+
+    public static string GitShell()
+    {
+        bool isNix = Environment.OSVersion.Platform == PlatformID.Unix ||
+                     Environment.OSVersion.Platform == PlatformID.MacOSX;
+        if (isNix)
+        {
+            return EditorPrefs.GetString("gitNixShell");
+        }
+
+        return "cmd.exe";
     }
 
     public static bool IsGitOutdated()
@@ -779,12 +887,12 @@ public class GitLocks : ScriptableObject
         char[] splitter = { '\n' };
 
         // Staged
-        string output = ExecuteProcessTerminal("git", "diff --name-only --staged");
+        string output = ExecuteProcessTerminal(GitExecutable(), "diff --name-only --staged");
         string[] lines = output.Split(splitter, StringSplitOptions.RemoveEmptyEntries);
         List<string> filesCandidates = new List<string>(lines);
 
         // Not staged
-        output = ExecuteProcessTerminal("git", "diff --name-only");
+        output = ExecuteProcessTerminal(GitExecutable(), "diff --name-only");
         lines = output.Split(splitter, StringSplitOptions.RemoveEmptyEntries);
         filesCandidates.AddRange(lines);
 
@@ -847,10 +955,10 @@ public class GitLocks : ScriptableObject
         foreach (string branch in branchesToCheck)
         {
             // Fetch
-            ExecuteProcessTerminal("git", "git fetch origin " + branch);
+            ExecuteProcessTerminal(GitExecutable(), "git fetch origin " + branch);
 
             // List all distant commits
-            string output = ExecuteProcessTerminal("git", "rev-list " + currentBranch + "..origin/" + branch);
+            string output = ExecuteProcessTerminal(GitExecutable(), "rev-list " + currentBranch + "..origin/" + branch);
             string[] lines = output.Split(splitter, StringSplitOptions.RemoveEmptyEntries);
             List<string> commits = new List<string>(lines);
 
@@ -858,7 +966,7 @@ public class GitLocks : ScriptableObject
             foreach (string commit in commits)
             {
                 // Add all files in commit to the list
-                string filesOutput = ExecuteProcessTerminal("git", "diff-tree --no-commit-id --name-only -r " + commit.Replace("\r", ""));
+                string filesOutput = ExecuteProcessTerminal(GitExecutable(), "diff-tree --no-commit-id --name-only -r " + commit.Replace("\r", ""));
                 string[] files = filesOutput.Split(splitter, StringSplitOptions.RemoveEmptyEntries);
 
                 foreach (string file in files)
@@ -897,7 +1005,7 @@ public class GitLocks : ScriptableObject
     public static string GetCurrentBranch()
     {
         char[] splitter = { '\n' };
-        string currentBranch = ExecuteProcessTerminal("git", "rev-parse --abbrev-ref HEAD");
+        string currentBranch = ExecuteProcessTerminal(GitExecutable(), "rev-parse --abbrev-ref HEAD");
         currentBranch = currentBranch.Split(splitter)[0].Replace("\r", "");
         return currentBranch;
     }
@@ -930,7 +1038,7 @@ public class GitLocks : ScriptableObject
             if (!EditorUtility.DisplayDialog("Git Lfs Locks Error", "Git lfs locks error :\n\n" + refreshCallbackError + "\n\nIf it's your first time using the tool, you should probably setup the credentials manager", "OK", "Setup credentials"))
             {
                 DebugLog("Setup credentials manager");
-                ExecuteProcessTerminalWithConsole("git", "config --global credential.helper manager");
+                ExecuteProcessTerminalWithConsole(GitExecutable(), "config --global credential.helper manager");
             }
 
             refreshCallbackError = null;

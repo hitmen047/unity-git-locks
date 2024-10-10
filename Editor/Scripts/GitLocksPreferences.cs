@@ -1,5 +1,8 @@
 // <copyright file="GitLocksPreferences.cs" company="Tom Duchene and Tactical Adventures">All rights reserved.</copyright>
 
+using System;
+using System.Collections;
+using System.Text;
 using UnityEditor;
 using UnityEngine;
 
@@ -223,6 +226,73 @@ public class GitLocksPreferences : SettingsProvider
         EditorGUI.indentLevel++;
 
         EditorGUILayout.Space();
+        
+        {
+            // Configure git location manually 
+            EditorGUILayout.BeginHorizontal();
+            EditorGUI.BeginChangeCheck();
+            bool configureGitPath = EditorGUILayout.ToggleLeft(new GUIContent("Configure Git Manually"),
+                EditorPrefs.GetBool("gitConfigureManual"), GUILayout.Width(195));
+            if (EditorGUI.EndChangeCheck())
+            {
+                EditorPrefs.SetBool("gitConfigureManual", configureGitPath);
+            }
+
+            EditorGUI.BeginDisabledGroup(!configureGitPath);
+            EditorGUI.BeginChangeCheck();
+            string uri = EditorGUILayout.TextField(EditorPrefs.GetString("gitBinary"));
+            if (EditorGUI.EndChangeCheck())
+            {
+                EditorPrefs.SetString("gitBinary", uri);
+            }
+
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.Space();
+        }
+
+        {
+            // Automatic Env Vars 
+            EditorGUILayout.BeginHorizontal();
+            EditorGUI.BeginChangeCheck();
+            bool configureGitEnv = EditorGUILayout.ToggleLeft(new GUIContent("Automatically Use EnvVars"),
+                EditorPrefs.GetBool("gitAutomaticEnv"), GUILayout.Width(195));
+            if (EditorGUI.EndChangeCheck())
+            {
+                EditorPrefs.SetBool("gitAutomaticEnv", configureGitEnv);
+            }
+
+            EditorGUI.BeginDisabledGroup(configureGitEnv);
+            EditorGUI.BeginChangeCheck();
+            string envVars = EditorPrefs.GetString("gitEnvironment");
+            EditorGUILayout.BeginVertical();
+            EditorGUILayout.LabelField("Environment Variables, One Per line, format:foo=bar", EditorStyles.label);
+            EditorGUI.BeginChangeCheck();
+            EditorGUILayout.TextArea(envVars);
+            if (EditorGUI.EndChangeCheck())
+            {
+                EditorPrefs.SetString("gitEnvironment", envVars);
+            }
+            EditorGUILayout.EndVertical();
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.Space();
+        }
+        {
+            // NIX only
+            EditorGUILayout.BeginHorizontal();
+            EditorGUI.BeginChangeCheck();
+            EditorGUILayout.LabelField("Default Shell (*nix only)", GUILayout.Width(195));
+            EditorGUI.BeginChangeCheck();
+            string uri = EditorGUILayout.TextField(EditorPrefs.GetString("gitNixShell"));
+            if (EditorGUI.EndChangeCheck())
+            {
+                EditorPrefs.SetString("gitNixShell", uri);
+            }
+
+            EditorGUILayout.EndHorizontal();
+            EditorGUILayout.Space();
+        }
 
         EditorGUILayout.LabelField(new GUIContent(GitLocks.GetGitVersion()), GUILayout.Height(25));
         if (GitLocks.IsGitOutdated())
@@ -230,15 +300,16 @@ public class GitLocksPreferences : SettingsProvider
             EditorGUILayout.LabelField(new GUIContent("Your git version seems outdated (2.30.0 minimum), you may need to update it and then setup the Credentials Manager for the authentication to work properly"), EditorStyles.wordWrappedLabel);
             if (GUILayout.Button("Update Git for Windows"))
             {
-                GitLocks.ExecuteProcessTerminal("git", "update-git-for-windows", true);
+                GitLocks.ExecuteProcessTerminal(GitLocks.GitExecutable(), "update-git-for-windows", true);
             }
         }
 
         if (GUILayout.Button("Setup credentials manager (when using HTTPS)"))
         {
-            GitLocks.ExecuteProcessTerminalWithConsole("git", "config --local credential.helper manager");
+            GitLocks.ExecuteProcessTerminalWithConsole(GitLocks.GitExecutable(), "config --local credential.helper manager");
         }
 
+        EditorGUILayout.Space();
         EditorGUI.indentLevel--;
     }
 }
