@@ -268,7 +268,7 @@ public class GitLocksPreferences : SettingsProvider
             EditorGUILayout.BeginVertical();
             EditorGUILayout.LabelField("Environment Variables, One Per line, format:foo=bar", EditorStyles.label);
             EditorGUI.BeginChangeCheck();
-            EditorGUILayout.TextArea(envVars);
+            envVars = EditorGUILayout.TextArea(envVars);
             if (EditorGUI.EndChangeCheck())
             {
                 EditorPrefs.SetString("gitEnvironment", envVars);
