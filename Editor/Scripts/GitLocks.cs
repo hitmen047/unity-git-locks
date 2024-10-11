@@ -262,6 +262,7 @@ public class GitLocks : ScriptableObject
         {
             Process p = new Process();
             ProcessStartInfo psi = new ProcessStartInfo();
+            psi.LoadUserProfile = true;
             var shell = GitShell();
             psi.FileName = shell;
             if (isNix)
@@ -295,6 +296,7 @@ public class GitLocks : ScriptableObject
                     p.StartInfo.RedirectStandardError = !openTerminal;
                     p.StartInfo.FileName = processName;
                     p.StartInfo.Arguments = processArguments;
+                    p.StartInfo.LoadUserProfile = true;
 
                     UpdateEnvironmentVariables(p.StartInfo);
 
@@ -373,7 +375,14 @@ public class GitLocks : ScriptableObject
             psi.EnvironmentVariables.Clear();
             foreach (System.Collections.DictionaryEntry de in Environment.GetEnvironmentVariables())
             {
-                psi.EnvironmentVariables.Add((string)de.Key, (string)de.Value);
+                if (psi.EnvironmentVariables.ContainsKey((string)de.Key))
+                {
+                    psi.EnvironmentVariables[(string)de.Key] = (string)de.Value;
+                }
+                else
+                {
+                    psi.EnvironmentVariables.Add((string)de.Key, (string)de.Value);   
+                }
             }
         }
         else
@@ -447,6 +456,7 @@ public class GitLocks : ScriptableObject
             p.StartInfo.UseShellExecute = false;
             p.StartInfo.RedirectStandardOutput = true;
             p.StartInfo.RedirectStandardError = true;
+            p.StartInfo.LoadUserProfile = true;
             p.StartInfo.FileName = processName;
             p.StartInfo.Arguments = processArguments;
             p.EnableRaisingEvents = true;
