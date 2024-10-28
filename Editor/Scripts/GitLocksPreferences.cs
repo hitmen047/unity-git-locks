@@ -60,11 +60,6 @@ public class GitLocksPreferences : SettingsProvider
                 EditorPrefs.SetString("gitLocksHostUsername", username);
             }
 
-            if (GUILayout.Button("Go on github"))
-            {
-                UnityEngine.Application.OpenURL("https://github.com/");
-            }
-
             EditorGUILayout.EndHorizontal();
 
             GUILayout.Space(5);
