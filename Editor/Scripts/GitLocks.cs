@@ -1,6 +1,7 @@
 // <copyright file="GitLocks.cs" company="Tom Duchene and Tactical Adventures">All rights reserved.</copyright>
 
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
