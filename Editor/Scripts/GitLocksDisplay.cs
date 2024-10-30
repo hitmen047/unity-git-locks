@@ -713,7 +713,7 @@ public class GitLocksDisplay : EditorWindow
             if (GitLocks.GetGitUsername() == string.Empty)
             {
                 // If username hasn't been set, show this window instead of the main one to ask the user to input it's username
-                GUILayout.Label("You need to setup your Git LFS host username for the tool to work properly, most likely your Gitlab username", EditorStyles.wordWrappedLabel);
+                GUILayout.Label("You need to setup your Git LFS host username for the tool to work properly, most likely your Github username", EditorStyles.wordWrappedLabel);
                 GUILayout.BeginHorizontal();
 
                 if (GUILayout.Button("Setup username in preferences"))

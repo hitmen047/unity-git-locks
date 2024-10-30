@@ -1,7 +1,6 @@
 // <copyright file="GitLocks.cs" company="Tom Duchene and Tactical Adventures">All rights reserved.</copyright>
 
 using System;
-using System.IO;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -101,7 +100,6 @@ public class GitLocks : ScriptableObject
         {
             EditorPrefs.SetBool("gitConfigureManual", false);
         }
-
         if (!EditorPrefs.HasKey("gitAutomaticEnv"))
         {
             EditorPrefs.SetBool("gitAutomaticEnv", true);
@@ -127,9 +125,7 @@ public class GitLocks : ScriptableObject
     // Methods 
     public static void CheckLocksRefresh()
     {
-        if (EditorPrefs.GetBool("gitLocksAutoRefreshLocks", true) &&
-            DateTime.Now > lastRefresh.AddMinutes(EditorPrefs.GetInt("gitLocksRefreshLocksInterval", 5)) &&
-            !EditorApplication.isCompiling && !EditorApplication.isUpdating)
+        if (EditorPrefs.GetBool("gitLocksAutoRefreshLocks", true) && DateTime.Now > lastRefresh.AddMinutes(EditorPrefs.GetInt("gitLocksRefreshLocksInterval", 5)) && !EditorApplication.isCompiling && !EditorApplication.isUpdating)
         {
             RefreshLocks();
         }
@@ -173,8 +169,7 @@ public class GitLocks : ScriptableObject
             BuildUncommitedCache();
             if (GetDisplayLocksConflictWarning())
             {
-                string conflictMessage =
-                    "The following files are currently locked and you have uncommited changes on them that you'll probably not be able to push:";
+                string conflictMessage = "The following files are currently locked and you have uncommited changes on them that you'll probably not be able to push:";
                 bool conflictFound = false;
                 foreach (GitLocksObject lo in lockedObjectsCache)
                 {
@@ -185,7 +180,6 @@ public class GitLocks : ScriptableObject
                         AddFileToConflictWarningIgnoreList(lo.path);
                     }
                 }
-
                 if (conflictFound)
                 {
                     EditorUtility.DisplayDialog("Warning", conflictMessage, "OK");
@@ -219,8 +213,7 @@ public class GitLocks : ScriptableObject
                         }
                     }
 
-                    if (!lockAlreadyThere &&
-                        potentialNewLock.owner.name != EditorPrefs.GetString("gitLocksHostUsername"))
+                    if (!lockAlreadyThere && potentialNewLock.owner.name != EditorPrefs.GetString("gitLocksHostUsername"))
                     {
                         if (newLocksString != string.Empty)
                         {
@@ -240,7 +233,7 @@ public class GitLocks : ScriptableObject
             // Sort the locks to show mine first
             if (lockedObjectsCache.Count > 0)
             {
-                lockedObjectsCache.Sort(delegate(GitLocksObject a, GitLocksObject b)
+                lockedObjectsCache.Sort(delegate (GitLocksObject a, GitLocksObject b)
                 {
                     // ^ is exclusive OR, compare if only one is equal to the git username
                     if (a.IsMine() ^ b.IsMine())
@@ -258,14 +251,13 @@ public class GitLocks : ScriptableObject
         GitLocksDisplay.RepaintAll();
     }
 
-    public static string ExecuteProcessTerminal(string processName, string processArguments, out string errorString,
-        bool openTerminal = false)
+    public static string ExecuteProcessTerminal(string processName, string processArguments, out string errorString, bool openTerminal = false)
     {
         DebugLog("ExecuteProcessTerminal: " + processName + " with the following parameters:\n" + processArguments);
 
         bool isNix = Environment.OSVersion.Platform == PlatformID.Unix ||
                      Environment.OSVersion.Platform == PlatformID.MacOSX;
-
+        
         if (openTerminal)
         {
             Process p = new Process();
@@ -280,11 +272,11 @@ public class GitLocks : ScriptableObject
             }
             else
             {
-                psi.Arguments = "/k " + processName + " " + processArguments;
+                psi.Arguments = "/k " + processName + " " + processArguments;   
             }
 
             UpdateEnvironmentVariables(psi);
-
+            
             p.StartInfo = psi;
             p.Start();
 
@@ -311,8 +303,7 @@ public class GitLocks : ScriptableObject
                     System.Text.StringBuilder output = new System.Text.StringBuilder();
                     System.Text.StringBuilder error = new System.Text.StringBuilder();
 
-                    using (System.Threading.AutoResetEvent
-                           outputWaitHandle = new System.Threading.AutoResetEvent(false))
+                    using (System.Threading.AutoResetEvent outputWaitHandle = new System.Threading.AutoResetEvent(false))
                     using (System.Threading.AutoResetEvent errorWaitHandle = new System.Threading.AutoResetEvent(false))
                     {
                         p.OutputDataReceived += (sender, e) =>
@@ -372,7 +363,7 @@ public class GitLocks : ScriptableObject
             }
         }
     }
-
+    
     /// <summary>
     /// Inject Environment variables either automatically or whatever the user specifies
     /// </summary>
@@ -390,7 +381,7 @@ public class GitLocks : ScriptableObject
                 }
                 else
                 {
-                    psi.EnvironmentVariables.Add((string)de.Key, (string)de.Value);
+                    psi.EnvironmentVariables.Add((string)de.Key, (string)de.Value);   
                 }
             }
         }
@@ -453,26 +444,25 @@ public class GitLocks : ScriptableObject
 
     public static void ExecuteNonBlockingProcessTerminal(string processName, string processArguments)
     {
-        DebugLog("ExecuteNonBlockingProcessTerminal: " + processName + " with the following parameters:\n" +
-                 processArguments);
+        DebugLog("ExecuteNonBlockingProcessTerminal: " + processName + " with the following parameters:\n" + processArguments);
 
         try
         {
             // Start the child process.
-            System.Diagnostics.Process newProcess = new System.Diagnostics.Process();
+            System.Diagnostics.Process p = new System.Diagnostics.Process();
 
             // Redirect the output stream of the child process.
-            newProcess.StartInfo.CreateNoWindow = true;
-            newProcess.StartInfo.UseShellExecute = false;
-            newProcess.StartInfo.RedirectStandardOutput = true;
-            newProcess.StartInfo.RedirectStandardError = true;
-            newProcess.StartInfo.LoadUserProfile = true;
-            newProcess.StartInfo.FileName = processName;
-            newProcess.StartInfo.Arguments = processArguments;
-            newProcess.EnableRaisingEvents = true;
-            UpdateEnvironmentVariables(newProcess.StartInfo);
-
-            newProcess.OutputDataReceived += new System.Diagnostics.DataReceivedEventHandler((sender, e) =>
+            p.StartInfo.CreateNoWindow = true;
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.RedirectStandardError = true;
+            p.StartInfo.LoadUserProfile = true;
+            p.StartInfo.FileName = processName;
+            p.StartInfo.Arguments = processArguments;
+            p.EnableRaisingEvents = true;
+            UpdateEnvironmentVariables(p.StartInfo);
+            
+            p.OutputDataReceived += new System.Diagnostics.DataReceivedEventHandler((sender, e) =>
             {
                 // Store the results to be treated on the main thread
                 if (e.Data != null)
@@ -480,7 +470,7 @@ public class GitLocks : ScriptableObject
                     refreshCallbackResult = e.Data;
                 }
             });
-            newProcess.ErrorDataReceived += new System.Diagnostics.DataReceivedEventHandler((sender, e) =>
+            p.ErrorDataReceived += new System.Diagnostics.DataReceivedEventHandler((sender, e) =>
             {
                 // Store the errors to be treated on the main thread
                 if (e.Data != null)
@@ -488,9 +478,9 @@ public class GitLocks : ScriptableObject
                     refreshCallbackError = e.Data;
                 }
             });
-            newProcess.Start();
-            newProcess.BeginOutputReadLine();
-            newProcess.BeginErrorReadLine();
+            p.Start();
+            p.BeginOutputReadLine();
+            p.BeginErrorReadLine();
         }
         catch (Exception e)
         {
@@ -522,25 +512,25 @@ public class GitLocks : ScriptableObject
             return false;
         }
 
-        foreach (GitLocksObject lockedObject in lockedObjectsCache)
+        foreach (GitLocksObject lo in lockedObjectsCache)
         {
-            if (path.Replace("\\", "/") == lockedObject.path.Replace("\\", "/"))
+            if (path.Replace("\\", "/") == lo.path.Replace("\\", "/"))
             {
-                return lockedObject.IsMine();
+                return lo.IsMine();
             }
         }
 
         return false;
     }
 
-    public static bool IsObjectAvailableToUnlock(GitLocksObject lockedObject)
+    public static bool IsObjectAvailableToUnlock(GitLocksObject lo)
     {
         if (lockedObjectsCache == null)
         {
             return false;
         }
 
-        return lockedObject.IsMine();
+        return lo.IsMine();
     }
 
     public static bool IsObjectAvailableToLock(UnityEngine.Object obj)
@@ -560,9 +550,9 @@ public class GitLocks : ScriptableObject
             return false;
         }
 
-        foreach (GitLocksObject lockedObject in lockedObjectsCache)
+        foreach (GitLocksObject lo in lockedObjectsCache)
         {
-            if (path.Replace("\\", "/") == lockedObject.path.Replace("\\", "/"))
+            if (path.Replace("\\","/") == lo.path.Replace("\\", "/"))
             {
                 return false;
             }
@@ -578,11 +568,11 @@ public class GitLocks : ScriptableObject
             return null;
         }
 
-        foreach (GitLocksObject lockedObject in lockedObjectsCache)
+        foreach (GitLocksObject lo in lockedObjectsCache)
         {
-            if (obj == lockedObject.GetObjectReference())
+            if (obj == lo.GetObjectReference())
             {
-                return lockedObject;
+                return lo;
             }
         }
 
@@ -596,11 +586,11 @@ public class GitLocks : ScriptableObject
             return null;
         }
 
-        foreach (GitLocksObject lockedObject in lockedObjectsCache)
+        foreach (GitLocksObject lo in lockedObjectsCache)
         {
-            if (path == lockedObject.path)
+            if (path == lo.path)
             {
-                return lockedObject;
+                return lo;
             }
         }
 
@@ -611,9 +601,6 @@ public class GitLocks : ScriptableObject
     {
         List<string> list = new List<string>();
         list.Add(path);
-        var metaPath = path + ".meta";
-        if (File.Exists(metaPath))
-            list.Add(metaPath);
         LockFiles(list);
     }
 
@@ -621,36 +608,31 @@ public class GitLocks : ScriptableObject
     {
         // Logs
         if (paths.Count > 1)
+        {
             DebugLog("Trying to lock " + paths.Count + " files");
+        }
         else
+        {
             DebugLog("Trying to lock " + paths[0]);
+        }
 
         // Split into multiple requests if there are too many files (prevents triggering timeout)
-        int numOfRequests =
-            (int)Math.Ceiling((float)paths.Count / (float)EditorPrefs.GetInt("gitLocksMaxFilesNumPerRequest", 15));
+        int numOfRequests = (int)Math.Ceiling((float)paths.Count / (float)EditorPrefs.GetInt("gitLocksMaxFilesNumPerRequest", 15));
         List<string> pathsStrings = new List<string>(new string[numOfRequests]);
         for (int i = 0; i < paths.Count; i++)
         {
-            string path = paths[i];
-            var metaPath = $"{path}.meta";
+            string p = paths[i];
             // Optionally, check if the file we want to lock has been modified on the server
-            if (EditorPrefs.GetBool("warnIfFileHasBeenModifiedOnServer") && HasFileBeenModifiedOnServer(path) &&
-                HasFileBeenModifiedOnServer(metaPath))
+            if (EditorPrefs.GetBool("warnIfFileHasBeenModifiedOnServer") && HasFileBeenModifiedOnServer(p))
             {
-                if (EditorUtility.DisplayDialog("File modified on the server",
-                        "Warning! The file you want to lock has been modified on the server already, you REALLY should pull before locking or you'll almost certainly get merge conflicts.",
-                        "OK, don't lock yet", "I know what I'm doing, lock anyway"))
+                if (EditorUtility.DisplayDialog("File modified on the server", "Warning! The file you want to lock has been modified on the server already, you REALLY should pull before locking or you'll almost certainly get merge conflicts.", "OK, don't lock yet", "I know what I'm doing, lock anyway"))
                 {
                     return;
                 }
             }
 
-            int stringIndex =
-                (int)Math.Floor((float)i / (float)EditorPrefs.GetInt("gitLocksMaxFilesNumPerRequest", 15) +
-                                Mathf.Epsilon);
-            pathsStrings[stringIndex] += "\"" + path + "\" ";
-            if (File.Exists(metaPath))
-                pathsStrings[stringIndex] += "\"" + metaPath + "\" ";
+            int stringIndex = (int)Math.Floor((float)i / (float)EditorPrefs.GetInt("gitLocksMaxFilesNumPerRequest", 15) + Mathf.Epsilon);
+            pathsStrings[stringIndex] += "\"" + p + "\" ";
         }
 
         // Send each request
@@ -664,9 +646,6 @@ public class GitLocks : ScriptableObject
     {
         List<string> list = new List<string>();
         list.Add(path);
-        var metaPath = path + ".meta";
-        if (File.Exists(metaPath))
-            list.Add(metaPath);
         UnlockFiles(list, force);
     }
 
@@ -682,41 +661,31 @@ public class GitLocks : ScriptableObject
         }
 
         // Split into multiple requests if there are too many files (prevents triggering timeout)
-        int numOfRequests =
-            (int)Math.Ceiling((float)paths.Count / (float)EditorPrefs.GetInt("gitLocksMaxFilesNumPerRequest", 15));
+        int numOfRequests = (int)Math.Ceiling((float)paths.Count / (float)EditorPrefs.GetInt("gitLocksMaxFilesNumPerRequest", 15));
         List<string> pathsStrings = new List<string>(new string[numOfRequests]);
         for (int i = 0; i < paths.Count; i++)
         {
-            string path = paths[i];
-            var metaPath = $"{path}.meta";
+            string p = paths[i];
 
-            int stringIndex =
-                (int)Math.Floor((float)i / (float)EditorPrefs.GetInt("gitLocksMaxFilesNumPerRequest", 15) +
-                                Mathf.Epsilon);
-            pathsStrings[stringIndex] += "\"" + path + "\" ";
-            if (File.Exists(metaPath))
-                pathsStrings[stringIndex] += "\"" + metaPath + "\" ";
+            int stringIndex = (int)Math.Floor((float)i / (float)EditorPrefs.GetInt("gitLocksMaxFilesNumPerRequest", 15) + Mathf.Epsilon);
+            pathsStrings[stringIndex] += "\"" + p + "\" ";
         }
 
         // Send each request
         foreach (string pathsString in pathsStrings)
         {
-            ExecuteProcessTerminalWithConsole(GitExecutable(),
-                "lfs unlock " + pathsString + (force ? "--force" : string.Empty));
+            ExecuteProcessTerminalWithConsole(GitExecutable(), "lfs unlock " + pathsString + (force ? "--force" : string.Empty));
         }
     }
 
     public static void UnlockAllMyLocks()
     {
         List<string> paths = new List<string>();
-        foreach (GitLocksObject lockedObject in lockedObjectsCache)
+        foreach (GitLocksObject lo in lockedObjectsCache)
         {
-            if (lockedObject.IsMine())
+            if (lo.IsMine())
             {
-                paths.Add(lockedObject.path);
-                var metaPath = $"{lockedObject.path}.meta";
-                if (File.Exists(metaPath))
-                    paths.Add(metaPath);
+                paths.Add(lo.path);
             }
         }
 
@@ -727,15 +696,12 @@ public class GitLocks : ScriptableObject
     public static void UnlockMultipleLocks(List<GitLocksObject> toUnlock)
     {
         List<string> paths = new List<string>();
-        foreach (GitLocksObject lockedObject in toUnlock)
+        foreach (GitLocksObject lo in toUnlock)
         {
             // Sanity check
-            if (lockedObject.IsMine())
+            if (lo.IsMine())
             {
-                paths.Add(lockedObject.path);
-                var metaPath = $"{lockedObject.path}.meta";
-                if (File.Exists(metaPath))
-                    paths.Add(metaPath);
+                paths.Add(lo.path);
             }
         }
 
@@ -751,11 +717,11 @@ public class GitLocks : ScriptableObject
         }
 
         List<GitLocksObject> myLocks = new List<GitLocksObject>();
-        foreach (GitLocksObject lockedObject in lockedObjectsCache)
+        foreach (GitLocksObject lo in lockedObjectsCache)
         {
-            if (lockedObject.IsMine())
+            if (lo.IsMine())
             {
-                myLocks.Add(lockedObject);
+                myLocks.Add(lo);
             }
         }
 
@@ -770,11 +736,11 @@ public class GitLocks : ScriptableObject
         }
 
         List<GitLocksObject> myLocks = new List<GitLocksObject>();
-        foreach (GitLocksObject lockedObject in lockedObjectsCache)
+        foreach (GitLocksObject lo in lockedObjectsCache)
         {
-            if (!lockedObject.IsMine())
+            if (!lo.IsMine())
             {
-                myLocks.Add(lockedObject);
+                myLocks.Add(lo);
             }
         }
 
@@ -1010,8 +976,7 @@ public class GitLocks : ScriptableObject
             foreach (string commit in commits)
             {
                 // Add all files in commit to the list
-                string filesOutput = ExecuteProcessTerminal(GitExecutable(),
-                    "diff-tree --no-commit-id --name-only -r " + commit.Replace("\r", ""));
+                string filesOutput = ExecuteProcessTerminal(GitExecutable(), "diff-tree --no-commit-id --name-only -r " + commit.Replace("\r", ""));
                 string[] files = filesOutput.Split(splitter, StringSplitOptions.RemoveEmptyEntries);
 
                 foreach (string file in files)
@@ -1057,8 +1022,7 @@ public class GitLocks : ScriptableObject
 
     private static void Update()
     {
-        if (!IsEnabled() || EditorApplication.isUpdating || EditorApplication.isCompiling ||
-            EditorApplication.isPlaying)
+        if (!IsEnabled() || EditorApplication.isUpdating || EditorApplication.isCompiling || EditorApplication.isPlaying)
         {
             return; // Early return if the whole tool is disabled of if the Editor is not available
         }
@@ -1081,10 +1045,7 @@ public class GitLocks : ScriptableObject
 
         if (refreshCallbackError != null && refreshCallbackError != string.Empty)
         {
-            if (!EditorUtility.DisplayDialog("Git Lfs Locks Error",
-                    "Git lfs locks error :\n\n" + refreshCallbackError +
-                    "\n\nIf it's your first time using the tool, you should probably setup the credentials manager",
-                    "OK", "Setup credentials"))
+            if (!EditorUtility.DisplayDialog("Git Lfs Locks Error", "Git lfs locks error :\n\n" + refreshCallbackError + "\n\nIf it's your first time using the tool, you should probably setup the credentials manager", "OK", "Setup credentials"))
             {
                 DebugLog("Setup credentials manager");
                 ExecuteProcessTerminalWithConsole(GitExecutable(), "config --global credential.helper manager");
@@ -1103,15 +1064,13 @@ public class GitLocks : ScriptableObject
 
         if (EditorPrefs.GetBool("warnIfIStillOwnLocksOnQuit") && GetMyLocks() != null && GetMyLocks().Count > 0)
         {
-            if (EditorUtility.DisplayDialog("Remaining locks",
-                    "You still own locks on some files, do you want to quit anyway ?", "Yes", "No, take me back"))
+            if (EditorUtility.DisplayDialog("Remaining locks", "You still own locks on some files, do you want to quit anyway ?", "Yes", "No, take me back"))
             {
                 return true;
             }
             else
             {
-                GitLocksDisplay locksWindow =
-                    (GitLocksDisplay)EditorWindow.GetWindow(typeof(GitLocksDisplay), false, "Git Locks");
+                GitLocksDisplay locksWindow = (GitLocksDisplay)EditorWindow.GetWindow(typeof(GitLocksDisplay), false, "Git Locks");
                 return false;
             }
         }
